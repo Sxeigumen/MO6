@@ -6,7 +6,7 @@ from MatXCreation import *
 
 
 class SimplexElem:
-    def __init__(self, _a, _b, _c, _cond, workMode, later = "x"):
+    def __init__(self, _a, _b, _c, _cond, workMode, later="x"):
         self.restrictions = _a
         self.freeTerms = _b
         self.targetFunction = _c
@@ -20,7 +20,8 @@ class SimplexElem:
         self.level = 1
         self.name = "Basic"
         self.parentName = "Class"
-        self.later = ''
+        self.later = later
+        self.type = "direct"
 
     def fillArgs(self):
         newMatrix = WorkWithBasicMatrix.adaptToCondition(self.conditions, self.restrictions, self.freeTerms)
@@ -30,7 +31,7 @@ class SimplexElem:
         directMatrix = SimplexMethodComponents.canonizeMatrix(self.mode, self.restrictions,
                                                               self.freeTerms, self.targetFunction)
 
-        xMatrix = WorkWithBasicMatrix.createXMatrix(directMatrix)
+        xMatrix = WorkWithBasicMatrix.createXMatrix(directMatrix, self.later)
         self.xMatrix = xMatrix
 
         self.simplexMatrix = directMatrix
@@ -65,10 +66,10 @@ class PrintForSimplexMethod(object):
         print("==================")
 
     @staticmethod
-    def getResults(workMode, xMat=None, cMat=np.array([]), matrix=np.array([]), problemType="direct"):
+    def getResults(workMode, xMat=None, cMat=np.array([]), matrix=np.array([]), problemType="direct", later='x'):
         if xMat is None:
             xMat = []
-        unknownVars = WorkWithBasicMatrix.UnknownVarsMatrix(cMat, problemType)
+        unknownVars = WorkWithBasicMatrix.UnknownVarsMatrix(cMat, later, problemType)
         equationRoots = [0] * len(unknownVars)
         print("Базис")
         for i in range(len(unknownVars)):
@@ -84,11 +85,12 @@ class PrintForSimplexMethod(object):
                 #equationRoots.append(0)
                 print(xMat[0][i] + " = 0")"""
         for i in range(len(unknownVars)):
-            print(f"x{i + 1} = {str(round(equationRoots[i], 2))}")
+            print(f"{later}{i + 1} = {str(round(equationRoots[i], 2))}")
         if workMode == "max":
             print("F = " + str(round(-matrix[matrix.shape[0] - 1][0], 2)))
         if workMode == "min":
             print("F = " + str(round(matrix[matrix.shape[0] - 1][0], 2)))
+        print()
         return equationRoots
 
 
@@ -105,32 +107,32 @@ class WorkWithBasicMatrix(object):
         return [matrixA, matrixB]
 
     @staticmethod
-    def UnknownVarsMatrix(matrixC=np.array([]), problemType="direct"):
+    def UnknownVarsMatrix(matrixC=np.array([]), later='x', problemType="direct"):
         variables = []
         if problemType == "direct":
             for index in range(matrixC.shape[0]):
-                variables.append(f'x{index + 1}')
+                variables.append(f'{later}{index + 1}')
         else:
             for index in range(matrixC.shape[0]):
                 variables.append(f'y{index + 1}')
         return variables
 
     @staticmethod
-    def createXMatrix(canonMat=np.array([]), problemType="direct"):
+    def createXMatrix(canonMat=np.array([]), later='x', problemType="direct"):
         xM = []
         tempMatrix = []
         for index in range(canonMat.shape[1] - 1):
             if index == 0:
                 tempMatrix.append('S')
             if problemType == "direct":
-                tempMatrix.append(f'x{index + 1}')
+                tempMatrix.append(f'{later}{index + 1}')
             else:
                 tempMatrix.append(f'y{index + 1}')
         xM.append(tempMatrix.copy())
         tempMatrix.clear()
         for index in range(canonMat.shape[0] - 1):
             if problemType == "direct":
-                tempMatrix.append(f'x{index + 1 + canonMat.shape[1] - 1}')
+                tempMatrix.append(f'{later}{index + 1 + canonMat.shape[1] - 1}')
             else:
                 tempMatrix.append(f'y{index + 1 + canonMat.shape[1] - 1}')
         xM.append(tempMatrix.copy())
@@ -308,7 +310,7 @@ class SimplexMethodComponents(object):
         elemIndex = -1
         specNum = 0
         for i in range(len(simplexObj1.results)):
-            if simplexObj1.results[i] != math.trunc(simplexObj1.results[i]) and\
+            if simplexObj1.results[i] != math.trunc(simplexObj1.results[i]) and \
                     simplexObj1.xMatrix[1][i] not in simplexObj1.usedVars:
                 elemIndex = i
                 specNum = simplexObj1.results[i]
@@ -403,7 +405,7 @@ class MainActions(object):
             PrintForSimplexMethod.printTable(simplexObj.xMatrix, simplexObj.simplexMatrix)
 
         result = PrintForSimplexMethod.getResults(simplexObj.mode, simplexObj.xMatrix, simplexObj.targetFunction,
-                                                  simplexObj.simplexMatrix, problemType)
+                                                  simplexObj.simplexMatrix, problemType, simplexObj.later)
         simplexObj.funcValue = -simplexObj.simplexMatrix[simplexObj.simplexMatrix.shape[0] - 1][0]
         simplexObj.results = result
 
@@ -437,28 +439,73 @@ class TypeOfProblem(object):
         return MainActions.optimizingSolution(directMatrix)
 
 
+def printGameTheory(simplexObj, player, res):
+    if simplexObj is not simplexObj:
+        simplexObj = SimplexElem(a, b, c, condition, flag)
+        simplexObj.fillArgs()
+
+    if player is None:
+        player = firstPlayer(strategyMat)
+        player.playerCreation()
+
+    line = ''
+    if player.name == 'first':
+        print("Оптимальная смешанная стратегия игрока А (первый игрок):")
+        line = "("
+        for elem in simplexObj.results:
+            line += f'{elem/res:>0.2f}, '
+        line = line[:-2]
+        line += ')'
+
+    elif player.name == 'second':
+        print("Оптимальная смешанная стратегия игрока B (второй игрок):")
+        line = "("
+        for elem in simplexObj.results:
+            line += f'{elem/res:>0.2f}, '
+        line = line[:-2]
+        line += ')'
+    print(line)
+    print(2 * '\n')
+
+
+def getFunc(simplexObj):
+    if simplexObj.mode == "max":
+        return -simplexObj.simplexMatrix[simplexObj.simplexMatrix.shape[0] - 1][0]
+    if simplexObj.mode == "min":
+        return simplexObj.simplexMatrix[simplexObj.simplexMatrix.shape[0] - 1][0]
+
+
 if __name__ == "__main__":
     fp = firstPlayer(strategyMat)
     fp.playerCreation()
+    fp.exPrint()
+
     a = fp.firstPlayerMainMat
     b = fp.firstPlayerFreeObj
     c = fp.firstPlayerMembers
     condition = fp.firstPlayerCond
     flag = fp.firstFlag
-    firstPlayer = SimplexElem(a, b, c, condition, flag)
+
+    firstPlayer = SimplexElem(a, b, c, condition, flag, 'u')
     firstPlayer.fillArgs()
     TypeOfProblem.direct_problem(firstPlayer)
-    print(firstPlayer.results)
+    result = getFunc(firstPlayer)
+
+    printGameTheory(firstPlayer, fp, result)
 
     sp = secondPlayer(strategyMat)
     sp.playerCreation()
+    sp.exPrint()
+
     a = sp.secondPlayerMainMat
     b = sp.secondPlayerFreeObj
     c = sp.secondPlayerMembers
     condition = sp.secondPlayerCond
     flag = sp.secondFlag
-    secondPlayer = SimplexElem(a, b, c, condition, flag)
+
+    secondPlayer = SimplexElem(a, b, c, condition, flag, 'v')
     secondPlayer.fillArgs()
     TypeOfProblem.direct_problem(secondPlayer)
-    print(secondPlayer.results)
+    result = getFunc(secondPlayer)
 
+    printGameTheory(secondPlayer, sp, result)
